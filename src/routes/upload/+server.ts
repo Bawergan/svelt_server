@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import * as fs from 'fs/promises';
 import path from 'path';
+import {bytesToSize} from '$lib/index';
 
 export async function POST(request) {
     try {
@@ -17,7 +18,7 @@ export async function POST(request) {
 
         const filePath = path.join(uploadDir, file.name);
         await fs.writeFile(filePath, Buffer.from(await file.arrayBuffer()));
-
+        console.log("added file:", file.name, "___ size:", bytesToSize(file.size), "___ type:", file.type);
         return json({ status: 201, body: id });
     } catch (error) {
         console.error('Error uploading file:', error);

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { CircleCheck, X, CircleX } from 'lucide-svelte';
+    import {bytesToSize} from '$lib/index';
 
 	type fileWrapper = {
 		file: File;
@@ -7,6 +8,9 @@
 	};
 	let files: fileWrapper[] = [];
 
+    $: filesToUploadSize = files.reduce((acc, file) => acc + (file.isLoaded ? 0 : file.file.size), 0);
+    $: filesToUploadCount = files.reduce((acc, file) => acc + (file.isLoaded ? 0 : 1), 0);
+    
 	function onNewFileInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		files = [
@@ -19,7 +23,10 @@
 	}
 
 	function uploadHandler() {
-		const promises: Promise<Response>[] = files.map((file, i) => {
+		const promises: (Promise<Response> | null)[] = files.map((file, i) => {
+			if (file.isLoaded) {
+				return null;
+			}
 			const formData = new FormData();
 			formData.append('file', file.file);
 			formData.append('index', i.toString());
@@ -31,7 +38,13 @@
 		});
 
 		Promise.all(promises)
-			.then((responses) => Promise.all(responses.map((response) => responseHandler(response))))
+			.then((responses) =>
+				Promise.all(
+					responses
+						.filter((response) => response != null)
+						.map((response) => responseHandler(response))
+				)
+			)
 			.then(() => {
 				files = [...files];
 			})
@@ -54,12 +67,18 @@
 	function removeHandler(file: File) {
 		files = files.filter((f) => f.file !== file);
 	}
+
 </script>
 
 <h1>Files</h1>
 
 {#key files}
-	<input class="file-input" type="file" multiple oninput={onNewFileInput} />
+	<label class="file-upload"> choose files
+		<input type="file" multiple oninput={onNewFileInput} />
+	</label>
+    {#if files.length !== 0}
+        <span class="file-upload-anotation">total {filesToUploadCount} files, {bytesToSize(filesToUploadSize)}</span>
+    {/if}
 {/key}
 
 <ul class="file-list">
@@ -127,11 +146,23 @@
 		background-color: #587059;
 	}
 
-	.file-input {
+	input[type='file'] {
+		display: none;
+	}
+
+	.file-upload {
 		border: 1px solid #ccc;
 		border-radius: 10px;
-		padding: 10px;
+		display: inline-block;
+		padding: 6px 12px;
+		cursor: pointer;
 		font-size: 16px;
-		margin-bottom: 10px;
+        margin-bottom: 10px;
 	}
+    
+    .file-upload-anotation {
+		padding: 6px 12px;
+		font-size: 16px;
+        margin-bottom: 10px;
+    }
 </style>
